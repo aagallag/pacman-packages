@@ -1695,6 +1695,34 @@ index 8bb1773c0..0080720e9 100644
  
  /* Enable OpenGL support */
  #undef SDL_VIDEO_OPENGL
+diff --git a/src/audio/SDL_audio.c b/src/audio/SDL_audio.c
+index beb26e0b4..57d1b3d00 100644
+--- a/src/audio/SDL_audio.c
++++ b/src/audio/SDL_audio.c
+@@ -104,6 +104,9 @@ static AudioBootStrap *bootstrap[] = {
+ #if SDL_AUDIO_DRIVER_NDS
+ 	&NDSAUD_bootstrap,
+ #endif
++#if SDL_AUDIO_DRIVER_NSWITCH
++	&SWITCHAUD_bootstrap,
++#endif
+ #if SDL_AUDIO_DRIVER_MMEAUDIO
+ 	&MMEAUDIO_bootstrap,
+ #endif
+diff --git a/src/audio/SDL_sysaudio.h b/src/audio/SDL_sysaudio.h
+index 74ac21df0..3d84fba50 100644
+--- a/src/audio/SDL_sysaudio.h
++++ b/src/audio/SDL_sysaudio.h
+@@ -170,6 +170,9 @@ extern AudioBootStrap DCAUD_bootstrap;
+ #if SDL_AUDIO_DRIVER_NDS
+ extern AudioBootStrap NDSAUD_bootstrap;
+ #endif
++#if SDL_AUDIO_DRIVER_NSWITCH
++extern AudioBootStrap SWITCHAUD_bootstrap;
++#endif
+ #if SDL_AUDIO_DRIVER_MMEAUDIO
+ extern AudioBootStrap MMEAUDIO_bootstrap;
+ #endif
 diff --git a/src/audio/switch/SDL_switchaudio.c b/src/audio/switch/SDL_switchaudio.c
 new file mode 100644
 index 000000000..acc0329f4
