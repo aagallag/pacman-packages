@@ -1974,10 +1974,6 @@ index 000000000..c3be64ed4
 +};
 +
 +#endif /* _SDL_switchaudio_h */
-diff --git a/src/audio/switch/SDL_switchaudio.o b/src/audio/switch/SDL_switchaudio.o
-new file mode 100644
-index 000000000..c67122617
-Binary files /dev/null and b/src/audio/switch/SDL_switchaudio.o differ
 diff --git a/src/joystick/switch/SDL_sysjoystick.c b/src/joystick/switch/SDL_sysjoystick.c
 new file mode 100644
 index 000000000..37be44677
@@ -2082,10 +2078,10 @@ index 8af6e52f4..0cc93e674 100644
  #include "generic/SDL_systhread_c.h"
 diff --git a/src/thread/switch/SDL_syscond.c b/src/thread/switch/SDL_syscond.c
 new file mode 100644
-index 000000000..4b5282856
+index 000000000..38b445e6d
 --- /dev/null
 +++ b/src/thread/switch/SDL_syscond.c
-@@ -0,0 +1,158 @@
+@@ -0,0 +1,164 @@
 +/*
 +  Simple DirectMedia Layer
 +  Copyright (C) 1997-2014 Sam Lantinga <slouken@libsdl.org>
@@ -2121,13 +2117,12 @@ index 000000000..4b5282856
 +
 +struct SDL_cond
 +{
-+	CondVar cond;
-+	Mutex mutex;
++    CondVar cond;
 +};
 +
 +struct SDL_mutex 
 +{
-+	Mutex mutex;
++    RMutex mutex;
 +};
 +
 +/* Create a condition variable */
@@ -2137,7 +2132,10 @@ index 000000000..4b5282856
 +    SDL_cond *cond;
 +
 +    cond = (SDL_cond *) SDL_malloc(sizeof(*cond));
-+    if (!cond) {
++    if (cond) {
++        condvarInit(&cond->cond);
++    }
++    else {
 +        SDL_OutOfMemory();
 +    }
 +    return (cond);
@@ -2202,21 +2200,23 @@ index 000000000..4b5282856
 +SDL_CondWaitTimeout(SDL_cond * cond, SDL_mutex * mutex, Uint32 ms)
 +{
 +    int retval;
++    uint32_t mutex_state[2];
 +
 +    if (!cond) {
 +        SDL_SetError("Passed a NULL condition variable");
 +        return -1;
 +    }
 +
-+     condvarInit(&cond->cond, &mutex->mutex);
++    // backup mutext state
++    mutex_state[0] = mutex->mutex.thread_tag;
++    mutex_state[1] = mutex->mutex.counter;
++    mutex->mutex.thread_tag = 0;
++    mutex->mutex.counter = 0;
 +
-+    /* Unlock the mutex, as is required by condition variable semantics */
-+    SDL_UnlockMutex(mutex);
++    retval = condvarWaitTimeout(&cond->cond, &mutex->mutex.lock, ms * 1000000);
 +
-+    retval =  condvarWaitTimeout(&cond->cond, (ms == SDL_MUTEX_MAXWAIT) ? U64_MAX : (signed long long)ms*1000000);
-+
-+    /* Lock the mutex, as is required by condition variable semantics */
-+    SDL_LockMutex(mutex);
++    mutex->mutex.thread_tag = mutex_state[0];
++    mutex->mutex.counter = mutex_state[1];
 +
 +    return retval;
 +}
@@ -2225,29 +2225,27 @@ index 000000000..4b5282856
 +int
 +SDL_CondWait(SDL_cond * cond, SDL_mutex * mutex)
 +{
-+   int retval;
++    int retval;
++    uint32_t mutex_state[2];
 +
 +    if (!cond) {
 +        SDL_SetError("Passed a NULL condition variable");
 +        return -1;
 +    }
 +
-+    condvarInit(&cond->cond, &mutex->mutex);
-+	
-+    /* Unlock the mutex, as is required by condition variable semantics */
-+    SDL_UnlockMutex(mutex);
++    // backup mutext state
++    mutex_state[0] = mutex->mutex.thread_tag;
++    mutex_state[1] = mutex->mutex.counter;
++    mutex->mutex.thread_tag = 0;
++    mutex->mutex.counter = 0;
 +
-+    retval =  condvarWait(&cond->cond);
++    retval =  condvarWait(&cond->cond, &mutex->mutex.lock);
 +
-+    /* Lock the mutex, as is required by condition variable semantics */
-+    SDL_LockMutex(mutex);
++    mutex->mutex.thread_tag = mutex_state[0];
++    mutex->mutex.counter = mutex_state[1];
 +
 +    return retval;
 +}
-diff --git a/src/thread/switch/SDL_syscond.o b/src/thread/switch/SDL_syscond.o
-new file mode 100644
-index 000000000..02787b3b9
-Binary files /dev/null and b/src/thread/switch/SDL_syscond.o differ
 diff --git a/src/thread/switch/SDL_sysmutex.c b/src/thread/switch/SDL_sysmutex.c
 new file mode 100644
 index 000000000..e9b54d4e3
@@ -2376,10 +2374,6 @@ index 000000000..e9b54d4e3
 +	return 0;
 +#endif /* SDL_THREADS_DISABLED */
 +}
-diff --git a/src/thread/switch/SDL_sysmutex.o b/src/thread/switch/SDL_sysmutex.o
-new file mode 100644
-index 000000000..d57475580
-Binary files /dev/null and b/src/thread/switch/SDL_sysmutex.o differ
 diff --git a/src/thread/switch/SDL_syssem.c b/src/thread/switch/SDL_syssem.c
 new file mode 100644
 index 000000000..bb74fd974
@@ -2596,10 +2590,6 @@ index 000000000..bb74fd974
 +}
 +
 +#endif /* SDL_THREADS_DISABLED */
-diff --git a/src/thread/switch/SDL_syssem.o b/src/thread/switch/SDL_syssem.o
-new file mode 100644
-index 000000000..16bca5e8b
-Binary files /dev/null and b/src/thread/switch/SDL_syssem.o differ
 diff --git a/src/thread/switch/SDL_systhread.c b/src/thread/switch/SDL_systhread.c
 new file mode 100644
 index 000000000..3233b4d04
@@ -2713,10 +2703,6 @@ index 000000000..3233b4d04
 +		thread->handle = NULL;
 +	}
 +}
-diff --git a/src/thread/switch/SDL_systhread.o b/src/thread/switch/SDL_systhread.o
-new file mode 100644
-index 000000000..bc939b8bf
-Binary files /dev/null and b/src/thread/switch/SDL_systhread.o differ
 diff --git a/src/thread/switch/SDL_systhread_c.h b/src/thread/switch/SDL_systhread_c.h
 new file mode 100644
 index 000000000..112c4ead9
